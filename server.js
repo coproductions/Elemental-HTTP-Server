@@ -5,12 +5,13 @@ var PORT = 9090;
 var PUBLIC = './public/';
 var server = http.createServer(handleRequest)
 
-
 server.listen(PORT,function(){
   console.log('http server listening on port:'+PORT)
+  updateIndexPage();
 })
 
 function handleRequest(request, response){
+
   console.log('in handleRequest')
   console.log('response method:',response.method)
   // console.log('request',request)
@@ -22,7 +23,7 @@ function handleRequest(request, response){
       handleGet(request,response);
       break;
     case 'POST' :
-     handlePost(request,response);
+      handlePost(request,response);
       break;
   }
 }
@@ -64,32 +65,80 @@ function handlePost(request,response){
   request.on('end', function(){
     console.log('postBody', postBody);
 
-    var postData = querystring.parse(postBody);
+    var postObject = querystring.parse(postBody);
+    var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
+    var fileName = PUBLIC+postObject.elementName+'.html';
+    var postSuccessful = '{"success":"true"}';
+    var postUnsuccessful = '{"success":"false"}';
 
-    //create a new file, in public
-    fs.writeFile(PUBLIC+postData.filename,postData.content,function(err){
-      if(err){
-        response.write(err);
+
+    //check if file exists
+    fs.exists(fileName,function(fileAlreadyExists){
+
+      if (fileAlreadyExists){
+
+      //if file exists do return error
+        response.write(postUnsuccessful);
         response.end();
-        throw err;
       } else{
-        response.write('success');
-        response.end();
 
+        // otherwise create a new file, in public
+        fs.writeFile(fileName,pageContent,function(err){
+          if(err){
+            response.write(err);
+            response.end();
+            throw err;
+          } else{
+            // console.log('response:', response)
+            response.write(postSuccessful);
+            response.end();
+          }
+        })
+        updateIndexPage(fileName,postObject.elementName)
       }
     })
   })
 }
 
+
 function generateElementHtmlPage(elName,elSymbol,elAtomicNr,elDescription){
 
   return '<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <title>The Elements - '
   +elName
-  '</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>'
+  +'</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>'
   +elName
   +'</h1> <h2>H</h2> <h3>Atomic number '
   +elAtomicNr
   +'</h3> <p>'
   +elDescription
   +'</p> <p><a href="/">back</a></p> </body> </html>';
+}
+
+function updateIndexPage(fileName,elName){
+  var oldIndexString = fs.readFileSync(PUBLIC+'index.html').toString();
+
+  var regForNumber = /(<h3>These are )(\d+)(<\/h3>)/g;
+  var regForLinkList = /(<ol class="elementsLinks">)(.+)(<\/ol>)/g;
+
+  var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
+  var currentLinkList = regForLinkList.exec(oldIndexString)[2];
+
+  var newLink = '<li> <a href="/' + fileName + '">' + elName + '</a> </li>';
+
+
+  var newIndexString =
+    '<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <title>The Elements</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>The Elements</h1> <h2>These are all the known elements.</h2> <h3>These are '
+    + currentNrOfElements+1
+    +'</h3> <ol class="elementsLinks">'
+    + currentLinkList
+    + newLink
+    +'</ol><</body> </html>';
+
+
+    // replace index file
+  fs.writeFile(PUBLIC+'index.html',newIndexString,function(err){
+    if(err){
+      throw err;
+    }
+  })
 }
