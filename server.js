@@ -7,7 +7,7 @@ var server = http.createServer(handleRequest)
 
 server.listen(PORT,function(){
   console.log('http server listening on port:'+PORT)
-  updateIndexPage();
+  // updateIndexPage();
 })
 
 function handleRequest(request, response){
@@ -32,7 +32,7 @@ function handleRequest(request, response){
 function handleGet(request,response){
   console.log('inhandle get')
   var uri = request.url;
-    if(uri == '/'){
+    if(uri === '/'){
       uri = 'index.html';
     }
 
@@ -60,6 +60,7 @@ function handlePost(request,response){
 
   request.on('data', function(chunk){
       postBody += chunk.toString();
+      // response.end();
   })
 
   request.on('end', function(){
@@ -67,7 +68,7 @@ function handlePost(request,response){
 
     var postObject = querystring.parse(postBody);
     var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
-    var fileName = PUBLIC+postObject.elementName+'.html';
+    var fileName = PUBLIC+postObject.elementName.toLowerCase() +'.html';
     var postSuccessful = '{"success":"true"}';
     var postUnsuccessful = '{"success":"false"}';
 
@@ -92,9 +93,9 @@ function handlePost(request,response){
             // console.log('response:', response)
             response.write(postSuccessful);
             response.end();
+            updateIndexPage(fileName,postObject.elementName)
           }
         })
-        updateIndexPage(fileName,postObject.elementName)
       }
     })
   })
@@ -121,18 +122,20 @@ function updateIndexPage(fileName,elName){
   var regForLinkList = /(<ol class="elementsLinks">)(.+)(<\/ol>)/g;
 
   var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
+  console.log('old number',currentNrOfElements,typeof currentNrOfElements)
+  var newNrOfElements = currentNrOfElements+1;
+  console.log('new number',newNrOfElements,typeof newNrOfElements)
   var currentLinkList = regForLinkList.exec(oldIndexString)[2];
 
-  var newLink = '<li> <a href="/' + fileName + '">' + elName + '</a> </li>';
-
+  var newLink = '<li> <a href="/' + elName + '.html' + '">' + elName + '</a> </li>';
 
   var newIndexString =
     '<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <title>The Elements</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>The Elements</h1> <h2>These are all the known elements.</h2> <h3>These are '
-    + currentNrOfElements+1
+    + newNrOfElements
     +'</h3> <ol class="elementsLinks">'
     + currentLinkList
     + newLink
-    +'</ol><</body> </html>';
+    +'</ol></body> </html>';
 
 
     // replace index file
