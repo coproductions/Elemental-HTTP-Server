@@ -68,31 +68,27 @@ function handlePost(request,response){
   })
 
   request.on('end', function(){
-
     var postObject = querystring.parse(postBody);
     var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
     var fileName = PUBLIC+postObject.elementName.toLowerCase() +'.html';
-
-
 
     //check if file exists
     fs.exists(fileName,function(fileAlreadyExists){
 
       if (fileAlreadyExists){
 
-      //if file exists do return error
+      //if file exists respond unsucessful
         response.write(postUnsuccessful);
         response.end();
       } else{
 
-        // otherwise create a new file, in public
+        // otherwise create a new file, in public and respond success
         fs.writeFile(fileName,pageContent,function(err){
           if(err){
             response.write(err);
             response.end();
             throw err;
           } else{
-            // console.log('response:', response)
             response.write(postSuccessful);
             response.end();
             updateIndexPage(fileName,postObject.elementName)
@@ -191,7 +187,7 @@ function generateElementHtmlPage(elName,elSymbol,elAtomicNr,elDescription){
   +'</p> <p><a href="/">back</a></p> </body> </html>';
 }
 
-function updateIndexPage(fileName,elName,deleteFile){
+function updateIndexPage(fileName,elName,deleteMethod){
   var oldIndexString = fs.readFileSync(PUBLIC+'index.html').toString();
   var newLink;
 
@@ -202,7 +198,9 @@ function updateIndexPage(fileName,elName,deleteFile){
   var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
   var newNrOfElements = currentNrOfElements+1;
   var currentLinkList = regForLinkList.exec(oldIndexString)[2];
-  if(deleteFile){
+
+  //if the method is delete, then adjust update values
+  if(deleteMethod){
     newNrOfElements = currentNrOfElements-1;
     newLink = '';
     currentLinkList = currentLinkList.replace(regForDeleteLink,"");
