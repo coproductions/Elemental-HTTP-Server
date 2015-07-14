@@ -22,7 +22,11 @@ function handleRequest(request, response){
     case 'POST' :
       handlePost(request,response);
       break;
-    case 'PUT' : handlePut(request,response);
+    case 'PUT' :
+      handlePut(request,response);
+      break;
+    case 'DELETE' :
+      handleDelete(request,response);
       break;
 
   }
@@ -132,7 +136,31 @@ function handlePut(request,response){
       });
 
     });
+}
 
+function handleDelete(request,response){
+  var fileName = './public'+request.url;
+  fs.exists(fileName,function(fileExists){
+
+    if(fileExists){
+      fs.unlink(fileName,function(err){
+        if(err){
+          response.write(err);
+          response.end();
+          throw err;
+        } else{
+          updateIndexPage(request.url,null,true)
+          response.write(postSuccessful);
+          response.end()
+        }
+      })
+    } else{
+      response.statusCode = 500;
+      response.write('{"error":"resource '+ request.url+' does not exist" }');
+      response.end();
+
+    }
+  })
 }
 
 function updateHtmlFile(filePath,contentObject){
@@ -163,17 +191,25 @@ function generateElementHtmlPage(elName,elSymbol,elAtomicNr,elDescription){
   +'</p> <p><a href="/">back</a></p> </body> </html>';
 }
 
-function updateIndexPage(fileName,elName){
+function updateIndexPage(fileName,elName,deleteFile){
   var oldIndexString = fs.readFileSync(PUBLIC+'index.html').toString();
+  var newLink;
 
   var regForNumber = /(<h3>These are )(\d+)(<\/h3>)/g;
   var regForLinkList = /(<ol class="elementsLinks">)(.+)(<\/ol>)/g;
+  var regForDeleteLink = new RegExp('(<li>)( <a href=\")(' + fileName + ')(">)(\\w)+(<\/a> <\/li>)','g')
 
   var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
   var newNrOfElements = currentNrOfElements+1;
   var currentLinkList = regForLinkList.exec(oldIndexString)[2];
-
-  var newLink = '<li> <a href="/' + elName + '.html' + '">' + elName + '</a> </li>';
+  if(deleteFile){
+    newNrOfElements = currentNrOfElements-1;
+    newLink = '';
+    currentLinkList = currentLinkList.replace(regForDeleteLink,"");
+  }
+  else{
+    newLink = '<li> <a href="/' + elName.toLowerCase() + '.html' + '">' + elName + '</a> </li>';
+  }
 
   var newIndexString =
     '<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <title>The Elements</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>The Elements</h1> <h2>These are all the known elements.</h2> <h3>These are '
