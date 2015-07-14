@@ -9,7 +9,6 @@ var postUnsuccessful = '{"success":"false"}';
 
 server.listen(PORT,function(){
   console.log('http server listening on port:'+PORT)
-  // updateIndexPage();
 })
 
 function handleRequest(request, response){
@@ -28,7 +27,6 @@ function handleRequest(request, response){
     case 'DELETE' :
       handleDelete(request,response);
       break;
-
   }
 }
 
@@ -101,36 +99,33 @@ function handlePost(request,response){
 
 function handlePut(request,response){
 
-  var filePath = request.url;
-  var fileName = './public'+filePath
+  var fileUri = request.url;
+  var filePath = './public'+fileUri;
 
   var postBody = '';
 
   request.on('data', function(chunk){
     postBody += chunk.toString();
-    // response.end();
   })
 
     request.on('end', function(){
       var postObject = querystring.parse(postBody);
-      console.log(postObject)
       var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
-      var fileName = PUBLIC+postObject.elementName.toLowerCase() +'.html';
+      // var filePath = PUBLIC+postObject.elementName.toLowerCase() +'.html';
 
 
-      fs.exists(fileName,function(fileExists){
+      fs.exists(filePath,function(fileExists){
 
         if(fileExists){
-          updateHtmlFile(filePath,postObject);
+          updateHtmlFile(fileUri,postObject);
           response.write(postSuccessful);
           response.end();
         } else{
-          console.log('couldnt find such file: ',fileName)
+          console.log('couldnt find such file: ',filePath)
           response.write(postUnsuccessful);
           response.end();
         }
       });
-
     });
 }
 
@@ -193,7 +188,7 @@ function updateIndexPage(fileName,elName,deleteMethod){
 
   var regForNumber = /(<h3>These are )(\d+)(<\/h3>)/g;
   var regForLinkList = /(<ol class="elementsLinks">)(.+)(<\/ol>)/g;
-  var regForDeleteLink = new RegExp('(<li>)( <a href=\")(' + fileName + ')(">)(\\w)+(<\/a> <\/li>)','g')
+  var regForDeleteLink = new RegExp('(<li>)( <a href=\")(' + fileName + ')(">)(\\w)+(<\/a> <\/li>)','g');
 
   var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
   var newNrOfElements = currentNrOfElements+1;
