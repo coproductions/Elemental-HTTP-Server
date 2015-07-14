@@ -4,6 +4,8 @@ var querystring = require('querystring');
 var PORT = 9090;
 var PUBLIC = './public/';
 var server = http.createServer(handleRequest)
+var postSuccessful = '{"success":"true"}';
+var postUnsuccessful = '{"success":"false"}';
 
 server.listen(PORT,function(){
   console.log('http server listening on port:'+PORT)
@@ -12,11 +14,6 @@ server.listen(PORT,function(){
 
 function handleRequest(request, response){
 
-  console.log('in handleRequest')
-  console.log('response method:',response.method)
-  // console.log('request',request)
-  // console.log('response',response)
-  //console.log(request);
   var responseBody = '';
   switch(request.method){
     case 'GET':
@@ -25,12 +22,14 @@ function handleRequest(request, response){
     case 'POST' :
       handlePost(request,response);
       break;
+    case 'PUT' : handlePut(request,response);
+      break;
+
   }
 }
 
 
 function handleGet(request,response){
-  console.log('inhandle get')
   var uri = request.url;
     if(uri === '/'){
       uri = 'index.html';
@@ -42,7 +41,6 @@ function handleGet(request,response){
           if(err){
             throw err;
           }
-          console.log('data',data)
           response.write(data);
           response.end();
         })
@@ -54,6 +52,8 @@ function handleGet(request,response){
     });
 }
 
+
+
 function handlePost(request,response){
 
   var postBody = '';
@@ -64,13 +64,11 @@ function handlePost(request,response){
   })
 
   request.on('end', function(){
-    console.log('postBody', postBody);
 
     var postObject = querystring.parse(postBody);
     var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
     var fileName = PUBLIC+postObject.elementName.toLowerCase() +'.html';
-    var postSuccessful = '{"success":"true"}';
-    var postUnsuccessful = '{"success":"false"}';
+
 
 
     //check if file exists
@@ -101,6 +99,54 @@ function handlePost(request,response){
   })
 }
 
+function handlePut(request,response){
+
+  var filePath = request.url;
+  var fileName = './public'+filePath
+
+  var postBody = '';
+
+  request.on('data', function(chunk){
+    postBody += chunk.toString();
+    // response.end();
+  })
+
+    request.on('end', function(){
+      var postObject = querystring.parse(postBody);
+      console.log(postObject)
+      var pageContent = generateElementHtmlPage(postObject.elementName,postObject.elementSymbol,postObject.elementAtomicNumber,postObject.elementDescription)
+      var fileName = PUBLIC+postObject.elementName.toLowerCase() +'.html';
+
+
+      fs.exists(fileName,function(fileExists){
+
+        if(fileExists){
+          updateHtmlFile(filePath,postObject);
+          response.write(postSuccessful);
+          response.end();
+        } else{
+          console.log('couldnt find such file: ',fileName)
+          response.write(postUnsuccessful);
+          response.end();
+        }
+      });
+
+    });
+
+}
+
+function updateHtmlFile(filePath,contentObject){
+  var oldFileString = fs.readFileSync(PUBLIC+filePath).toString();
+  var updatedFileString = generateElementHtmlPage(contentObject.elementName,contentObject.elementSymbol,contentObject.elementAtomicNumber,contentObject.elementDescription);
+
+   fs.writeFile(PUBLIC+filePath,updatedFileString,function(err){
+    if(err){
+      response.write(err);
+      response.end();
+      throw err;
+    }
+  })
+}
 
 function generateElementHtmlPage(elName,elSymbol,elAtomicNr,elDescription){
 
@@ -108,7 +154,9 @@ function generateElementHtmlPage(elName,elSymbol,elAtomicNr,elDescription){
   +elName
   +'</title> <link rel="stylesheet" href="/css/styles.css"> </head> <body> <h1>'
   +elName
-  +'</h1> <h2>H</h2> <h3>Atomic number '
+  +'</h1> <h2>'
+  +elSymbol
+  +'</h2> <h3>Atomic number '
   +elAtomicNr
   +'</h3> <p>'
   +elDescription
@@ -122,9 +170,7 @@ function updateIndexPage(fileName,elName){
   var regForLinkList = /(<ol class="elementsLinks">)(.+)(<\/ol>)/g;
 
   var currentNrOfElements = Number(regForNumber.exec(oldIndexString)[2]);
-  console.log('old number',currentNrOfElements,typeof currentNrOfElements)
   var newNrOfElements = currentNrOfElements+1;
-  console.log('new number',newNrOfElements,typeof newNrOfElements)
   var currentLinkList = regForLinkList.exec(oldIndexString)[2];
 
   var newLink = '<li> <a href="/' + elName + '.html' + '">' + elName + '</a> </li>';
